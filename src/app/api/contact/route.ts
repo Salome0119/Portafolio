@@ -109,51 +109,70 @@ export async function POST(request: Request) {
     message,
   ].join("\n");
 
-  try {
-    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "api-key": apiKey,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        sender: { name: senderName, email: senderEmail },
-        to: [{ email: toEmail, name: "Salome" }],
-        replyTo: { email, name },
-        subject: `[Portafolio] ${subject}`,
-        htmlContent,
-        textContent,
-      }),
-      cache: "no-store",
-    });
+  const payload = JSON.stringify({
+    sender: { name: senderName, email: senderEmail },
+    to: [{ email: toEmail, name: "Salome" }],
+    replyTo: { email, name },
+    subject: `[Portafolio] ${subject}`,
+    htmlContent,
+    textContent,
+  });
 
-    if (!response.ok) {
+  let response: Response | null = null;
+  let lastError = "unknown";
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: payload,
+        cache: "no-store",
+      });
+
+      if (response.ok || response.status < 500) break;
+
       const detail = (await response.json().catch(() => null)) as {
         message?: string;
         code?: string;
       } | null;
-      console.error("Brevo SMTP error:", response.status, detail?.code, detail?.message);
-      return NextResponse.json(
-        { ok: false, error: "No se pudo enviar el correo. Intenta nuevamente en unos minutos." },
-        { status: 502 },
-      );
+      lastError =
+        `HTTP ${response.status} ${detail?.code ?? ""} ${detail?.message ?? ""}`.trim();
+    } catch (error) {
+      response = null;
+      lastError = error instanceof Error ? error.message : "unknown";
     }
 
-    const delivered = (await response.json().catch(() => null)) as {
-      messageId?: string;
-    } | null;
-    console.info("Brevo SMTP enviado:", delivered?.messageId ?? "sin messageId");
-
-    return NextResponse.json({
-      ok: true,
-      message: "Mensaje enviado correctamente.",
-    });
-  } catch (error) {
-    console.error("Brevo request failed:", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json(
-      { ok: false, error: "No se pudo conectar con el servicio de correo." },
-      { status: 502 },
-    );
+    if (attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+    }
   }
+
+  if (!response?.ok) {
+    console.error("Brevo SMTP error:", lastError);
+    const detail = lastError.toLowerCase();
+    let error = "No se pudo enviar el correo. Intenta nuevamente en unos minutos.";
+    if (detail.includes("429") || detail.includes("quota") || detail.includes("limit")) {
+      error = "Se alcanzó el límite de envíos de Brevo. Intenta más tarde.";
+    } else if (detail.includes("401") || detail.includes("unauthorized") || detail.includes("api key")) {
+      error = "La API key de Brevo no es válida o no tiene permisos.";
+    } else if (detail.includes("sender")) {
+      error = "El remitente configurado en Brevo no está verificado.";
+    }
+    return NextResponse.json({ ok: false, error }, { status: 502 });
+  }
+
+  const delivered = (await response.json().catch(() => null)) as {
+    messageId?: string;
+  } | null;
+  console.info("Brevo SMTP enviado:", delivered?.messageId ?? "sin messageId");
+
+  return NextResponse.json({
+    ok: true,
+    message: "Mensaje enviado correctamente.",
+  });
 }

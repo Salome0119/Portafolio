@@ -1,24 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 
 /**
  * CursorGlow
  * ------------------------------------------------------------------
  * Resplandor (glow) que sigue al puntero en escritorio + anillo
- * interactivo con retardo elástico. Se desactiva automáticamente
- * en dispositivos táctiles y cuando el usuario pide menos movimiento.
+ * interactivo. Se desactiva en dispositivos táctiles y con
+ * prefers-reduced-motion.
  */
 export default function CursorGlow() {
   const x = useMotionValue(-200);
   const y = useMotionValue(-200);
-  const ringX = useSpring(x, { stiffness: 260, damping: 24, mass: 0.6 });
-  const ringY = useSpring(y, { stiffness: 260, damping: 24, mass: 0.6 });
+  const ringX = useSpring(x, { stiffness: 1200, damping: 32, mass: 0.3 });
+  const ringY = useSpring(y, { stiffness: 1200, damping: 32, mass: 0.3 });
   const [enabled, setEnabled] = useState(false);
   const [pressed, setPressed] = useState(false);
   const [hovering, setHovering] = useState(false);
-  const frame = useRef<number | null>(null);
 
   useEffect(() => {
     const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -28,16 +27,8 @@ export default function CursorGlow() {
     document.documentElement.classList.add("cursor-none");
 
     const onMove = (e: MouseEvent) => {
-      // Actualizamos las variables CSS del halo global (cursor-halo)
-      document.documentElement.style.setProperty("--cursor-x", `${e.clientX}px`);
-      document.documentElement.style.setProperty("--cursor-y", `${e.clientY}px`);
-      if (frame.current === null) {
-        frame.current = requestAnimationFrame(() => {
-          x.set(e.clientX);
-          y.set(e.clientY);
-          frame.current = null;
-        });
-      }
+      x.set(e.clientX);
+      y.set(e.clientY);
       const target = e.target as HTMLElement | null;
       setHovering(
         !!target?.closest("a, button, input, textarea, select, [role='button'], .glow-card"),
@@ -60,7 +51,8 @@ export default function CursorGlow() {
       window.removeEventListener("mouseup", onUp);
       document.removeEventListener("mouseleave", onLeave);
       document.documentElement.classList.remove("cursor-none");
-      if (frame.current) cancelAnimationFrame(frame.current);
+      setPressed(false);
+      setHovering(false);
     };
   }, [x, y]);
 
@@ -68,19 +60,16 @@ export default function CursorGlow() {
 
   return (
     <>
-      {/* Halo verde que sigue al puntero */}
       <motion.div
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 cursor-halo"
+        className="cursor-halo pointer-events-none fixed top-0 left-0 z-0 h-[840px] w-[840px] rounded-full"
         style={{ x, y, translateX: "-50%", translateY: "-50%" }}
       />
-      {/* Punto luminoso */}
       <motion.div
         aria-hidden
         className="pointer-events-none fixed top-0 left-0 z-[100] h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_3px_rgba(16,185,129,0.75)]"
         style={{ x, y, translateX: "-50%", translateY: "-50%" }}
       />
-      {/* Anillo con inercia */}
       <motion.div
         aria-hidden
         className="pointer-events-none fixed top-0 left-0 z-[99] rounded-full border border-emerald-400/60"

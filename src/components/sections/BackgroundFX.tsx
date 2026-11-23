@@ -35,9 +35,6 @@ export default function BackgroundFX() {
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Halo que sigue al cursor (variable --cursor-x/y) */}
-      <div className="cursor-halo absolute inset-0" />
-
       {/* Grano + viñeta */}
       <div className="noise-layer absolute inset-0 opacity-[0.035] mix-blend-overlay" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(7,11,18,0.85)_100%)]" />
