@@ -192,7 +192,7 @@ body {
 /* Resplandor global que sigue al cursor (se actualiza en CursorGlow.tsx) */
 @utility cursor-halo {
   background: radial-gradient(
-    420px circle at var(--cursor-x) var(--cursor-y),
+    circle,
     color-mix(in oklab, var(--color-neon-500) 13%, transparent),
     transparent 70%
   );
