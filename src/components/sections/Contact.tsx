@@ -39,6 +39,12 @@ export default function Contact() {
     `Hola Salome, te encontré por tu portafolio y me gustaría hablar sobre una oportunidad.`,
   )}`;
 
+  const directMailHref = `mailto:${profile.socials.email}?subject=${encodeURIComponent(
+    `[Portafolio] ${form.subject.trim() || "Contacto desde el portafolio"}`,
+  )}&body=${encodeURIComponent(
+    `Nombre: ${form.name}\nEmail: ${form.email}\nAsunto: ${form.subject}\n\n${form.message}`,
+  )}`;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("sending");
@@ -300,9 +306,9 @@ export default function Contact() {
                       className="mt-4 flex items-center gap-2 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-300 ring-1 ring-red-500/25"
                     >
                       <AlertCircle className="h-4 w-4 shrink-0" />
-                      {serverError || "No se pudo enviar."} Escríbeme directo a{" "}
+                      {serverError || "No se pudo enviar."} Envía tu mensaje a{" "}
                       <a
-                        href={`mailto:${profile.socials.email}`}
+                        href={directMailHref}
                         className="font-semibold underline underline-offset-2"
                       >
                         {profile.socials.email}

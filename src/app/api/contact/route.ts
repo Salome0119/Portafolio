@@ -120,8 +120,11 @@ export async function POST(request: Request) {
 
   let response: Response | null = null;
   let lastError = "unknown";
+  let lastStatus: number | null = null;
+  let lastAttempt = 0;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
+    lastAttempt = attempt;
     try {
       response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
@@ -133,8 +136,9 @@ export async function POST(request: Request) {
         body: payload,
         cache: "no-store",
       });
+      lastStatus = response.status;
 
-      if (response.ok || response.status < 500) break;
+      if (response.ok) break;
 
       const detail = (await response.json().catch(() => null)) as {
         message?: string;
@@ -142,6 +146,7 @@ export async function POST(request: Request) {
       } | null;
       lastError =
         `HTTP ${response.status} ${detail?.code ?? ""} ${detail?.message ?? ""}`.trim();
+      if (response.status < 500) break;
     } catch (error) {
       response = null;
       lastError = error instanceof Error ? error.message : "unknown";
@@ -153,12 +158,22 @@ export async function POST(request: Request) {
   }
 
   if (!response?.ok) {
-    console.error("Brevo SMTP error:", lastError);
+    console.error("Contacto: fallo al enviar", {
+      status: lastStatus,
+      detail: lastError,
+      attempt: lastAttempt,
+    });
     const detail = lastError.toLowerCase();
     let error = "No se pudo enviar el correo. Intenta nuevamente en unos minutos.";
     if (detail.includes("429") || detail.includes("quota") || detail.includes("limit")) {
       error = "Se alcanzó el límite de envíos de Brevo. Intenta más tarde.";
-    } else if (detail.includes("401") || detail.includes("unauthorized") || detail.includes("api key")) {
+    } else if (
+      detail.includes("401") ||
+      detail.includes("403") ||
+      detail.includes("unauthorized") ||
+      detail.includes("permission") ||
+      detail.includes("api key")
+    ) {
       error = "La API key de Brevo no es válida o no tiene permisos.";
     } else if (detail.includes("sender")) {
       error = "El remitente configurado en Brevo no está verificado.";
