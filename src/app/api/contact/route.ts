@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   }
 
   const apiKey = process.env.BREVO_API_KEY;
-  const toEmail = process.env.BREVO_CONTACT_EMAIL || "salohenao19@gmail.com";
+  const toEmail = process.env.BREVO_CONTACT_EMAIL || process.env.BREVO_SENDER_EMAIL || "";
   const senderEmail = process.env.BREVO_SENDER_EMAIL || toEmail;
   const senderName = process.env.BREVO_SENDER_NAME || "Portafolio";
 
